@@ -1,122 +1,70 @@
-from django.http import Http404
+from django.db.models import Sum, Q
+from rest_framework.generics import ListAPIView, RetrieveAPIView
+from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework import generics, status
+
 from .models import Category, Tag, Post
-from .serializers import CategorySerializer, TagSerializer, PostSerializer
+from .serializers import CategorySerializer, TagSerializer, PostPopularSerializer, PostFeaturedSerializer, \
+    PostRecentlySerializer, SearchSerializer, CategoryWithImageSerializer, PostDetailSerializer
+from ..users.models import Author
 
 
-class CategoryAPIView(APIView):
-
-    def get(self, request):
-        category = Category.objects.all()
-        data = {
-            'category': CategorySerializer(category, many=True).data
-        }
-        return Response(data)
-
-
-class CategoryDetailAPIView(APIView):
-
-    def get(self, request, pk):
-
-        try:
-            category = Category.objects.get(id=pk)
-        except:
-            return Response({"error": "Object doesnt exist"})
-
-        category = Category.objects.get(id=pk)
-        serializer = CategorySerializer(category)
-        return Response(serializer.data)
-
-    def put(self, request, pk):
-
-        try:
-            category = Category.objects.get(id=pk)
-        except:
-            return Response({"error": "Object doesnt exist"})
-
-        category = Category.objects.get(id=pk)
-        serializer = CategorySerializer(category, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, pk):
-
-        try:
-            category = Category.objects.get(id=pk)
-        except:
-            return Response({"error": "Object doesnt exist"})
-
-        category = Category.objects.get(id=pk)
-        category.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-class TagAPIView(APIView):
-
-    def get(self, request):
-        tag = Tag.objects.all()
-        data = {
-            'tag': TagSerializer(tag, many=True).data
-        }
-        return Response(data)
-
-
-class TagDetailAPIView(APIView):
-
-    def get(self, request, pk):
-
-        try:
-            tag = Tag.objects.get(id=pk)
-        except:
-            return Response({"error": "Object doesnt exist"})
-
-        tag = Tag.objects.get(id=pk)
-        serializer = TagSerializer(tag)
-        return Response(serializer.data)
-
-    def put(self, request, pk):
-
-        try:
-            tag = Tag.objects.get(id=pk)
-        except:
-            return Response({"error": "Object doesnt exist"})
-
-        tag = Tag.objects.get(id=pk)
-        serializer = TagSerializer(tag, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, pk):
-
-        try:
-            tag = Tag.objects.get(id=pk)
-        except:
-            return Response({"error": "Object doesnt exist"})
-        
-        tag = Tag.objects.get(id=pk)
-        tag.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-class PostAPIView(APIView):
-    queryset = Category.objects.all()
+class CategoryAPIView(ListAPIView):
+    queryset = Category.objects.all().order_by('?')[:5]
     serializer_class = CategorySerializer
+
+
+class TagAPIView(ListAPIView):
+    queryset = Tag.objects.all().order_by()[:9]
+    serializer_class = TagSerializer
+
+
+class PostFeaturedAPIView(ListAPIView):
+    queryset = Post.objects.filter(is_featured=True).order_by('?')[:2]
+    serializer_class = PostFeaturedSerializer
+
+
+class PostPopularAPIView(ListAPIView):
+    queryset = Post.objects.filter(is_popular=True).order_by("?")[:2]
+    serializer_class = PostPopularSerializer
+
+
+class PostRecentlyAPIView(ListAPIView):
+    queryset = Post.objects.all().order_by('-created_at')[:9]
+    serializer_class = PostRecentlySerializer
+    pagination_class = LimitOffsetPagination
+
+
+class TodaysUpdateAPIView(APIView):
 
     def get(self, request):
         post = Post.objects.all()
-        category = self.request.query_params.get('category')
-        if category:
-            post = post.filter(category__title=category)
-        tag = self.request.query_params.get('tag')
-        if tag:
-            post = post.filter(tag__title=tag)
-        data = {
-            'post': PostSerializer(post, many=True).data
-        }
-        return Response(data)
+        author = Author.objects.all()
+        min_read_value = Post.objects.aggregate(blog_read=Sum('read_min'))
+        return Response({
+            "new_posts": post.count(),
+            "total_visitors": author.count(),
+            "blog_read": min_read_value,
+        })
+
+
+class SearchAPIView(ListAPIView):
+    serializer_class = SearchSerializer
+
+    def get_queryset(self):
+        qs = Post.objects.all()
+        q = self.request.query_params.get('q')
+        if q:
+            qs = qs.filter(Q(title__exact=q) | Q(category__title__exact=q) | Q(tag__title__exact=q)).distinct()
+        return qs
+
+
+class CategoryWithImageAPIView(ListAPIView):
+    queryset = Category.objects.all()
+    serializer_class = CategoryWithImageSerializer
+
+
+class PostDetailAPIView(RetrieveAPIView):
+    queryset = Post.objects.all()
+    serializer_class = PostDetailSerializer

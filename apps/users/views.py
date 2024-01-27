@@ -1,21 +1,19 @@
-from rest_framework.response import Response
-from rest_framework.views import APIView
-from rest_framework.generics import ListAPIView
+from rest_framework.generics import ListAPIView, RetrieveAPIView
 
 from apps.users.models import Author
-from apps.users.serializers import AuthorSerializer
+from apps.users.serializers import AuthorTopSerializer, AuthorSerializer, AuthorPostDetailSerializer
 
 
-class AuthorAPIView(APIView):
-
-    def get(self, request):
-        posts = Author.objects.all()
-        data = {
-            'authors': AuthorSerializer(posts, many=True).data
-        }
-        return Response(data)
+class AuthorTopAPIView(ListAPIView):
+    queryset = Author.objects.filter(is_top=True)
+    serializer_class = AuthorTopSerializer
 
 
-# class AuthorListAPIView(ListAPIView):
-#     queryset = Author.objects.all()
-#     serializer_class = AuthorSerializer
+class AuthorOurAPIView(ListAPIView):
+    queryset = Author.objects.all()
+    serializer_class = AuthorSerializer
+
+
+class AuthorDetailAPIView(RetrieveAPIView):
+    queryset = Author.objects.all()
+    serializer_class = AuthorPostDetailSerializer

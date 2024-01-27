@@ -1,35 +1,73 @@
 from rest_framework import serializers
 
 from apps.blog.models import Category, Tag, Post
-from apps.users.serializers import AuthorSerializer
+from apps.users.models import Author
+
+
+class AuthorFeaturedSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Author
+        fields = ('title', 'image',)
 
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
-        fields = ('id', 'title', 'image', 'created_at', 'updated_at', 'count')
+        fields = ('title',)
 
 
 class TagSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tag
-        fields = ('id', 'title')
+        fields = ('title',)
 
 
-class PostSerializer(serializers.ModelSerializer):
+class PostRecentlySerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
-    author = AuthorSerializer(read_only=True)
-    tag = serializers.SerializerMethodField(read_only=True, required=False)
-
-    def get_tag(self, obj):
-        tag = obj.tag.all()
-        data = []
-        for i in tag:
-            data.append({'id': i.id, 'title': i.title})
-        return data
+    author = AuthorFeaturedSerializer(read_only=True)
 
     class Meta:
         model = Post
         fields = (
-            'id', 'author', 'title', 'category', 'image', 'short_content', 'content', 'read_min', 'tag', 'is_featured',
-            'is_popular', 'created_at', 'updated_at')
+            'title', 'author', 'category', 'image', 'short_content', 'read_min', 'created_at')
+
+
+class PostPopularSerializer(serializers.ModelSerializer):
+    author = AuthorFeaturedSerializer()
+    category = CategorySerializer(read_only=True)
+
+    class Meta:
+        model = Post
+        fields = (
+            'title', 'author', 'category', 'short_content', 'read_min', 'created_at')
+
+
+class PostFeaturedSerializer(serializers.ModelSerializer):
+    author = AuthorFeaturedSerializer()
+    category = CategorySerializer(read_only=True)
+
+    class Meta:
+        model = Post
+        fields = (
+            'title', 'author', 'category', 'short_content', 'read_min', 'created_at')
+
+
+class SearchSerializer(serializers.ModelSerializer):
+    author = AuthorFeaturedSerializer()
+    category = CategorySerializer(read_only=True)
+
+    class Meta:
+        model = Post
+        fields = ('title', 'author', 'category', 'short_content', 'read_min', 'created_at')
+
+
+class CategoryWithImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ('title', 'image')
+
+
+class PostDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Post
+        fields = ('title', 'author', 'image', 'short_content', 'content', 'created_at')
